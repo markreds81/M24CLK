@@ -1,0 +1,4 @@
+LINK : warning L4021: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 00204H 00205H M24CLK                 CODE

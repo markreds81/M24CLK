@@ -140,8 +140,8 @@ VECTOR    dw        INIT                ; 00: Initialization
           dw        CMD_ERR             ; 15: Removable media
 ;
 ;
-BIAS      dw        (366+3*365)*3       ; # days between 1980.01.01
-                                        ;            and 1992.01.01
+BIAS      dw        (366+3*365)*9       ; # days between 1980.01.01
+                                        ;            and 2016.01.01
 ;
 ;
           subttl    Device Strategy Routine
@@ -343,11 +343,12 @@ DISPLAY   endp
 ;
 ;         Data areas
 ;
-COPYRIGHT db        13,10,'M24CLK v. 1.1 (c) '
-          db        '1986,1993,1995'
-          db        ' by H.M. the Queen in Right of Canada, ',13,10
-          db        '     Written by G. Kroll '
-          db        '(95.07.28)'
+COPYRIGHT db        'M24CLK Clock Driver for Olivetti M24/M240,'
+          db        ' Rev 1.2 (22.05.03)',13,10
+          db        '(C) 1986,1993,1995'
+          db        ' by H.M. the Queen in Right of Canada',13,10
+          db        '(C) 2022 by Marco Rossi <marco@markreds.it>',13,10
+          db        'Written by G. Kroll (95.07.28)'
           db        13,10,'$'
 ;
 MSG0      db        '     This is NOT an Olivetti M24.  M24CLK will NOT '
