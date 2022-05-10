@@ -5,7 +5,7 @@ Clock driver for Olivetti M24 and AT&T 6300, written by G. Kroll and updated by 
 Lets any version of MS-DOS access the on-board clock of the Olivetti M24 and AT&T 6300 XT-compatible computers, using the usual TIME and DATE commands.
 
 These old PC XT models had a RTC chip able to keep only 4095 days from the epoch, after that it rolls over again. So the original driver provided by Olivetti doesn't work anymore.
-I found this alternative implementation with sources somewhere from Internet and published in this repository available to anyone. The last version from the original author was 1.1. Here I've updated to version 1.2 to be compatible from 2016 to 2028.
+I found this alternative implementation with sources somewhere from Internet and published in this repository available to anyone. The last version from the original author was 1.1. Here I've updated to version 1.2 to be compatible until 2027.
 
 ## Usage
 Include the following statement in your CONFIG.SYS:
@@ -24,10 +24,10 @@ Original release
 
 ### Version 1.1 (95.07.28)
 Corrects a date entry problem for dates after 1995.03.18, caused by the limited hardware of the M24 clock.
-The hardware clock only counts up to 4095 days from the "zero" date, which was previously set at 1984.01.01.  This release changes the "zero" date to 1992.01.01.  M24CLK will therefore fail again after 2003.03.18.
+The hardware clock only counts up to 4095 days from the "zero" date, which was previously set at 1984.01.01.  This release changes the "zero" date to 1992.01.01. M24CLK will therefore fail again after 2003.03.18.
 
 ### Version 1.2 (22.05.03)
-Updated to be compatible until 2028. Compiled with MS Macro Assembler 5.0 on my Olivetti M240 running MS-DOS 5.0.
+This release changes the "zero" date to 2016.01.01. M24CLK will therefore fail again after 2027.19.03. Compiled with MS Macro Assembler 5.0 on my Olivetti M240 running MS-DOS 5.0.
 
 ## Copyright
 (C) 1986,1993,1995 by H.M. the Queen, in Right of Canada
