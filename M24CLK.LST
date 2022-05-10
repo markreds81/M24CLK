@@ -1,0 +1,512 @@
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     1-1
+                                                            
+
+                                page      60,132 
+                                          title     M24CLK - CLOCK$ Driver for Olivetti M24 
+                                ; 
+                                ;         ------------------------------------------------------------------ 
+                                ;         |                                                                | 
+                                ;         |         Copyright (c) 1986, H.M. The Queen                     | 
+                                ;         |                             in Right of Canada                 | 
+                                ;         |                                                                | 
+                                ;         |         Unauthorized commercial use of this computer program   | 
+                                ;         |         is prohibited.                                         | 
+                                ;         |                                                                | 
+                                ;         |         This program is the property of the People of Canada,  | 
+                                ;         |         and as such, may be freely distributed.  No charge,    | 
+                                ;         |         other than for materials, may be made for any copy     | 
+                                ;         |         of this program.  All copies must, however, include    | 
+                                ;         |         this Notice.                                           | 
+                                ;         |                                                                | 
+                                ;         |         This program is distributed in the following form:     | 
+                                ;         |                                                                | 
+                                ;         |         Media:    3.5" diskette, MS-DOS format                 | 
+                                ;         |         Contents: M24CLK.ASM   MASM source code                | 
+                                ;         |                   M24CLK.LST   MASM source listing             | 
+                                ;         |                   M24CLK.OBJ   object code                     | 
+                                ;         |                   M24CLK.COM   executable program              | 
+                                ;         |                                                                | 
+                                ;         |                                                                | 
+                                ;         |         Author:   G. Kroll,                                    | 
+                                ;         |                   Manager, Special Projects                    | 
+                                ;         |                   PGWGSC Network Engineering Directorate,      | 
+                                ;         |                   Public Works & Government Services Canada,   | 
+                                ;         |                   11 Laurier St.,                              | 
+                                ;         |                   HULL, Quebec,                                | 
+                                ;         |                   Canada                                       | 
+                                ;         |                   K1A 0S5                                      | 
+                                ;         |                                                                | 
+                                ;         |                   (819) 956-2773                               | 
+                                ;         |                                                                | 
+                                ;         ------------------------------------------------------------------ 
+                                ; 
+                                          subttl    Documentation 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     2-1
+Documentation                                               
+
+                                          page      + 
+                                ; 
+                                ; 
+                                ;         Name:     M24CLK.SYS 
+                                ; 
+                                ; 
+                                ;         Type:     device driver (CLOCK$) 
+                                ; 
+                                ; 
+                                ;         Purpose: 
+                                ; 
+                                ;                   As a device driver, this program is intended to remain 
+                                ;                   resident.  It will handle all DOS requests to set or read 
+                                ;                   the clock, and will re-direct these calls to the hardware 
+                                ;                   clock. 
+                                ; 
+                                ; 
+                                ;         Usage: 
+                                ; 
+                                ;                   The CONFIG.SYS file must include the statement 
+                                ; 
+                                ;                         DEVICE=M24CLK.SYS 
+                                ; 
+                                ;                   All interfacing with this routine is the responsibility of 
+                                ;                   DOS.  The interfacing information is contained in the DOS 
+                                ;                   Technical Reference Manual. 
+                                ; 
+                                ; 
+                                ; 
+                                ;         Description: 
+                                ; 
+                                ;                   This program uses non-standard extensions of the INT 1A 
+                                ;                   routines, provided by Olivetti as part of the resident ROM 
+                                ;                   BIOS, to interface directly with the hardware clock. 
+                                ; 
+                                ;                   Since the calling parameters of these INT 1A extensions are 
+                                ;                   almost identical with those of the CLOCK$ driver, only a 
+                                ;                   small amount of processing is actually necessary here. 
+                                ; 
+                                          subttl    Resident Data Declarations, etc. 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     3-1
+Resident Data Declarations, etc.                            
+
+                                          page      + 
+ 0000                           M24CLK    segment   byte public 'code' 
+                                          assume    cs:M24CLK, ds:M24CLK, es:NOTHING, ss:NOTHING 
+ 0000                                     org       0h 
+                                ; 
+                                ;         ************************************************************* 
+                                ;         *                                                           * 
+                                ;         *   Device Driver Header.                                   * 
+                                ;         *                                                           * 
+                                ;         *   This set of declarations must be kept at location 0     * 
+                                ;         *   in order for this routine to be a device driver.        * 
+                                ;         *                                                           * 
+                                ;         ************************************************************* 
+                                ; 
+ 0000  FFFF FFFF                          dw        -1,-1               ; Pointer to next device driver 
+ 0004  8008                     H_ATTRIB  dw        8000h+8h            ; Attributes 
+ 0006  0038 R                   H_STRATGY dw        STRATEGY            ; Pointer to device strategy rtne 
+ 0008  0043 R                   H_INTRPT  dw        INTERRUPT           ; Pointer to device interrupt rtne 
+ 000A  43 4C 4F 43 4B 24 20     H_NAME    db        'CLOCK$  '          ; Device Name 
+       20                       
+                                ; 
+                                ; 
+                                ; 
+                                ;         DOS Device Request Description 
+                                ; 
+                                DOS_REQST struc 
+ 0000  ??                       R_LENGTH     db     ?                   ; Request length 
+ 0001  ??                       R_UNIT       db     ?                   ; Unit code 
+ 0002  ??                       R_COMMAND    db     ?                   ; Command code 
+ 0003  ????                     R_STATUS     dw     ?                   ; Status return field 
+ 0005  0004[                                 dw     4 dup (?)           ; Reserved for DOS 
+            ????                
+                         ]      
+                                
+ 000D  ??                       R_UNIT_CT    db     ?                   ; # units/media descriptor 
+ 000E  ???? ????                R_BUFFER     dw     ?,?                 ; Buffer pointer 
+ 0012  ????                                  dw     ?                   ; Byte/sector count 
+ 0014  ????                                  dw     ?                   ; Starting sector # 
+ 0016  ???? ????                             dw     ?,?                 ; Volume id pointer  
+ 001A                           DOS_REQST ends 
+                                ; 
+                                ; 
+                                ;         Data declarations, etc. 
+                                ; 
+                                ; 
+ 0012  ???? ????                REQST_PTR dw        ?,?                 ; Pointer to DOS request block 
+                                ; 
+                                ; 
+ 0016  00A5 R                   VECTOR    dw        INIT                ; 00: Initialization 
+ 0018  0066 R                             dw        CMD_ERR             ; 01: Media check 
+ 001A  0066 R                             dw        CMD_ERR             ; 02: Build BPB 
+ 001C  0066 R                             dw        CMD_ERR             ; 03: IOCTL (input) 
+ 001E  0092 R                             dw        INPUT               ; 04: Read 
+ 0020  0066 R                             dw        CMD_ERR             ; 05: Non-destructive read 
+ 0022  0066 R                             dw        CMD_ERR             ; 06: Input status 
+ 0024  0066 R                             dw        CMD_ERR             ; 07: Input flush 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     3-2
+Resident Data Declarations, etc.                            
+
+ 0026  007F R                             dw        OUTPUT              ; 08: Write 
+ 0028  007F R                             dw        OUTPUT              ; 09: Write with verify 
+ 002A  0066 R                             dw        CMD_ERR             ; 10: Output status 
+ 002C  0066 R                             dw        CMD_ERR             ; 11: Output flush 
+ 002E  0066 R                             dw        CMD_ERR             ; 12: IOCTL (output) 
+ 0030  0066 R                             dw        CMD_ERR             ; 13: Device open 
+ 0032  0066 R                             dw        CMD_ERR             ; 14: Device close 
+ 0034  0066 R                             dw        CMD_ERR             ; 15: Removable media 
+                                ; 
+                                ; 
+ 0036  111F                     BIAS      dw        (366+3*365)*3       ; # days between 1980.01.01 
+                                                                        ;            and 1992.01.01 
+                                ; 
+                                ; 
+                                          subttl    Device Strategy Routine 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     4-1
+Device Strategy Routine                                     
+
+                                          page      + 
+                                ; 
+                                ; 
+                                ;         STRATEGY: 
+                                ; 
+                                ;                   This routine saves the pointer to the DOS request block, and 
+                                ;                   does nothing else. 
+                                ; 
+ 0038                           STRATEGY  proc      far 
+                                ; 
+ 0038  2E: 89 1E 0012 R                   mov       cs:REQST_PTR,bx     ; Save pointer to the request block 
+ 003D  2E: 8C 06 0014 R                   mov       cs:REQST_PTR+2,es   ;   provided by DOS 
+ 0042  CB                                 ret                           ; Exit, that's all here 
+                                ; 
+                                STRATEGY  endp 
+                                 
+                                ; 
+                                ; 
+                                          subttl    Device Interrupt Routine 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     5-1
+Device Interrupt Routine                                    
+
+                                          page      + 
+                                ; 
+                                ; 
+                                ;         INTERRUPT: 
+                                ; 
+                                ;                   This routine processes the DOS request whose address was 
+                                ;                   saved by the STRATEGY routine. 
+                                ; 
+                                ;                   The request is validated.  If an error is found, an immedi- 
+                                ;                   ate exit is made. 
+                                ; 
+                                ;                   Valid requests are re-directed to the ROM BIOS routines via 
+                                ;                   non-standard function codes in INT 1A. 
+                                ; 
+ 0043                           INTERRUPT proc      far 
+ 0043  1E                                 push      ds 
+ 0044  52                                 push      dx 
+ 0045  51                                 push      cx 
+ 0046  53                                 push      bx 
+ 0047  50                                 push      ax 
+ 0048  57                                 push      di 
+ 0049  56                                 push      si 
+                                ; Validate DOS-supplied request block 
+ 004A  2E: C5 3E 0012 R                   lds       di,dword ptr cs:REQST_PTR ; ds:di addr of request block 
+ 004F  8A 45 02                           mov       al,[di+R_COMMAND] 
+ 0052  32 E4                              xor       ah,ah               ; ax: 16-bit command code 
+ 0054  C5 7D 0E                           lds       di,dword ptr [di+R_BUFFER] ; ds:di addr of request buffer 
+ 0057  3D 000F                            cmp       ax,+15              ; If command code > 15, 
+ 005A  7F 0A                              jg        CMD_ERR             ;   there's something wrong 
+ 005C  BE 0016 R                          mov       si,offset VECTOR 
+ 005F  03 F0                              add       si,ax               ; Develop proper pointer 
+ 0061  03 F0                              add       si,ax               ;   into vector table 
+ 0063  2E: FF 24                          jmp       cs:[si]             ;     before jumping to correct rtne 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     5-2
+Device Interrupt Routine                                    
+
+                                          page 
+                                ; 
+                                ; 
+                                ;         Reject this request:  Unsupported function code 
+                                ; 
+ 0066                           CMD_ERR: 
+ 0066  B8 8103                            mov       ax,8000h+100h+3h 
+ 0069  EB 04 90                           jmp       EXIT 
+                                ; 
+                                ; 
+                                ;         Request is completed:  Exit normally 
+                                ; 
+ 006C                           CMD_OK: 
+ 006C  B8 0100                            mov       ax,100h 
+ 006F                           EXIT: 
+ 006F  2E: C5 3E 0012 R                   lds       di,dword ptr cs:REQST_PTR ; ds:di addr of request block 
+ 0074  89 45 03                           mov       [di+R_STATUS],ax    ; Set status into request block 
+ 0077  5E                                 pop       si 
+ 0078  5F                                 pop       di 
+ 0079  58                                 pop       ax 
+ 007A  5B                                 pop       bx 
+ 007B  59                                 pop       cx 
+ 007C  5A                                 pop       dx 
+ 007D  1F                                 pop       ds 
+ 007E  CB                                 ret 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     5-3
+Device Interrupt Routine                                    
+
+                                          page 
+                                ; 
+                                ; 
+                                ;         Function 08, 09:  Write to clock 
+                                ; 
+                                ;                   This routine uses INT 1A.FF to write the current date & time 
+                                ;                   to the hardware clock.  This will work only on an Olivetti 
+                                ;                   M24. 
+                                ; 
+ 007F                           OUTPUT: 
+ 007F  8B 1D                              mov       bx,[di]             ; bx: # days since 80.01.01 
+ 0081  2E: 2B 1E 0036 R                   sub       bx,cs:BIAS          ; bx: # days since 92.01.01 
+ 0086  8B 4D 02                           mov       cx,[di+2]           ; ch: hours, cl: minutes 
+ 0089  8B 55 04                           mov       dx,[di+4]           ; dh: sec., dl: centisec. (ignored) 
+ 008C  B4 FF                              mov       ah,-1               ; Use INT 1A.FF 
+ 008E  CD 1A                              int       1ah                 ;   to write to hardware clock 
+ 0090  EB DA                              jmp       CMD_OK 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     5-4
+Device Interrupt Routine                                    
+
+                                          page 
+                                ; 
+                                ; 
+                                ;         Function 04:  Read from clock 
+                                ; 
+                                ;                   This routine uses INT 1A.FE to read the current date & time 
+                                ;                   from the hardware clock.  This will work only on an Olivetti 
+                                ;                   M24. 
+                                ; 
+ 0092                           INPUT: 
+ 0092  B4 FE                              mov       ah,-2               ; Use INT 1A.FE 
+ 0094  CD 1A                              int       1ah                 ;   to read from hardware clock 
+ 0096  2E: 03 1E 0036 R                   add       bx,cs:BIAS 
+ 009B  89 1D                              mov       [di],bx             ; bx: # days since 80.01.01 
+ 009D  89 4D 02                           mov       [di+2],cx           ; ch: hours, cl: minutes 
+ 00A0  89 55 04                           mov       [di+4],dx           ; dh: seconds, dl: centiseconds 
+ 00A3  EB C7                              jmp       CMD_OK 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     5-5
+Device Interrupt Routine                                    
+
+                                          page 
+                                ; 
+                                ; 
+                                ;         Function 00:  Initialization 
+                                ; 
+                                ;                   This routine issues an INT 1A.FE to test for execution on an 
+                                ;                   Olivetti M24.  The initial conditions are such that a NOP 
+                                ;                   exit from BIOS can be detected. 
+                                ; 
+                                ;                   If the t.o.d. returned is illegal, we can assume that the 
+                                ;                   current machine is not an Olivetti M24.  In this case, the 
+                                ;                   exit is taken such that this routine will NOT remain  
+                                ;                   resident. 
+                                ; 
+ 00A5                           INIT: 
+ 00A5  BF 00F8 R                          mov       di,offset COPYRIGHT 
+ 00A8  E8 00E7 R                          call      DISPLAY             ; Produce sign-on message 
+ 00AB  2E: C5 3E 0012 R                   lds       di,dword ptr cs:REQST_PTR ; ds:di addr of request block 
+ 00B0  B8 00A5 R                          mov       ax,offset INIT 
+ 00B3  89 45 0E                           mov       [di+R_BUFFER],ax    ; Set next avail addr 
+ 00B6  8C 4D 10                           mov       [di+R_BUFFER+2],cs  ;   into request block 
+ 00B9  B5 FF                              mov       ch,-1               ; Pre-load 'hours' reg. to illegal val. 
+ 00BB  B4 FE                              mov       ah,-2 
+ 00BD  CD 1A                              int       1ah                 ; Issue that trial INT 1A.FE 
+ 00BF  80 FD FF                           cmp       ch,-1               ; If t.o.d. returned is now legal, 
+ 00C2  75 A8                              jnz       CMD_OK              ;   assume it's an Olivetti M24 
+ 00C4  BF 0169 R                          mov       di,offset MSG0 
+ 00C7  E8 00E7 R                          call      DISPLAY             ; Display an informative message 
+ 00CA  2E: C5 3E 0012 R                   lds       di,dword ptr cs:REQST_PTR ; ds:di addr of request block 
+ 00CF  B8 0012 R                          mov       ax,offset H_NAME+8  ; Set next available addr 
+ 00D2  89 45 0E                           mov       [di+R_BUFFER],ax    ;   to the minimum necessary 
+                                ; Modify device header to indicate a 'do nothing' device 
+ 00D5  0E                                 push      cs 
+ 00D6  1F                                 pop       ds 
+ 00D7  33 C0                              xor       ax,ax 
+ 00D9  A3 000A R                          mov       word ptr H_NAME,ax  ; Make device name illegal 
+ 00DC  A3 0008 R                          mov       H_INTRPT,ax         ; Zero device interrupt pointer 
+ 00DF  A3 0006 R                          mov       H_STRATGY,ax        ;   as well as device strategy pointer 
+ 00E2  A2 0004 R                          mov       byte ptr H_ATTRIB,al ; Erase 'CLOCK$' bit 
+ 00E5  EB 85                              jmp       CMD_OK              ; Exit, that's all 
+                                ; 
+                                ; 
+                                INTERRUPT endp 
+                                          subttl    Non-resident Subroutines 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     6-1
+Non-resident Subroutines                                    
+
+                                          page      + 
+                                ; 
+                                ; 
+                                ;         DISPLAY: 
+                                ; 
+                                ;                   This routine will display a message. 
+                                ; 
+                                ; 
+                                ;         Usage: 
+                                ; 
+                                ;                        lds   di,offset MESSAGE 
+                                ;                        call  DISPLAY 
+                                ; 
+                                ;                   MESSAGE is an ASCII string terminated by a '$'. 
+                                ; 
+                                ; 
+                                ;         Description: 
+                                ; 
+                                ;                   The string, whose address is relative to the CS register, 
+                                ;                   will be displayed using BIOS routine 10.0E. 
+                                ; 
+                                ; 
+ 00E7                           DISPLAY   proc      near 
+ 00E7                           D_TAG0: 
+ 00E7  B3 07                              mov       bl,7h               ; bl: foreground colour 
+ 00E9  B4 0E                              mov       ah,0eh              ; ah:  function code 
+ 00EB  2E: 8A 05                          mov       al,cs:[di]          ; Fetch that byte 
+ 00EE  47                                 inc       di                  ;   and step to next one 
+ 00EF  3C 24                              cmp       al,'$' 
+ 00F1  74 04                              je        D_TAG1              ; If it's not "$", 
+ 00F3  CD 10                              int       10h                 ;   display it using INT 10.0E, 
+ 00F5  EB F0                              jmp       D_TAG0              ;     and go around again 
+                                ; Exit: we're done now 
+ 00F7                           D_TAG1: 
+ 00F7  C3                                 ret 
+                                DISPLAY   endp 
+                                ; 
+                                          subttl    Non-resident Data Declarations 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Page     7-1
+Non-resident Data Declarations                              
+
+                                          page      + 
+                                ; 
+                                ; 
+                                ;         Data areas 
+                                ; 
+ 00F8  0D 0A 4D 32 34 43 4C     COPYRIGHT db        13,10,'M24CLK v. 1.1 (c) ' 
+       4B 20 76 2E 20 31 2E     
+       31 20 28 63 29 20        
+ 010C  31 39 38 36 2C 31 39               db        '1986,1993,1995' 
+       39 33 2C 31 39 39 35     
+                                
+ 011A  20 62 79 20 48 2E 4D               db        ' by H.M. the Queen in Right of Canada, ',13,10 
+       2E 20 74 68 65 20 51     
+       75 65 65 6E 20 69 6E     
+       20 52 69 67 68 74 20     
+       6F 66 20 43 61 6E 61     
+       64 61 2C 20 0D 0A        
+ 0143  20 20 20 20 20 57 72               db        '     Written by G. Kroll ' 
+       69 74 74 65 6E 20 62     
+       79 20 47 2E 20 4B 72     
+       6F 6C 6C 20              
+ 015C  28 39 35 2E 30 37 2E               db        '(95.07.28)' 
+       32 38 29                 
+ 0166  0D 0A 24                           db        13,10,'$' 
+                                ; 
+ 0169  20 20 20 20 20 54 68     MSG0      db        '     This is NOT an Olivetti M24.  M24CLK will NOT ' 
+       69 73 20 69 73 20 4E     
+       4F 54 20 61 6E 20 4F     
+       6C 69 76 65 74 74 69     
+       20 4D 32 34 2E 20 20     
+       4D 32 34 43 4C 4B 20     
+       77 69 6C 6C 20 4E 4F     
+       54 20                    
+ 019C  72 65 6D 61 69 6E 20               db        'remain resident.',13,10,'$' 
+       72 65 73 69 64 65 6E     
+       74 2E 0D 0A 24           
+                                ; 
+ 01AF                           M24CLK    ends 
+                                ; 
+                                          end 
+Microsoft (R) Macro Assembler  Version 4.00                 7/28/95 13:08:01
+
+M24CLK - CLOCK$ Driver for Olivetti M24                     Symbols-1
+                                                             
+
+Structures and Records:
+
+                N a m e                 Width   # fields
+                                        Shift   Width   Mask    Initial
+
+DOS_REQST  . . . . . . . . . . .  	001A	000A
+  R_LENGTH . . . . . . . . . . .  	0000
+  R_UNIT . . . . . . . . . . . .  	0001
+  R_COMMAND  . . . . . . . . . .  	0002
+  R_STATUS . . . . . . . . . . .  	0003
+  R_UNIT_CT  . . . . . . . . . .  	000D
+  R_BUFFER . . . . . . . . . . .  	000E
+
+Segments and Groups:
+
+                N a m e         	Size	Align	Combine Class
+
+M24CLK . . . . . . . . . . . . .  	01AF	BYTE	PUBLIC	'CODE'
+
+Symbols:            
+
+                N a m e         	Type	Value	Attr         
+
+BIAS . . . . . . . . . . . . . .  	L WORD 	0036	M24CLK
+
+CMD_ERR  . . . . . . . . . . . .  	L NEAR	0066	M24CLK
+CMD_OK . . . . . . . . . . . . .  	L NEAR	006C	M24CLK
+COPYRIGHT  . . . . . . . . . . .  	L BYTE 	00F8	M24CLK
+
+DISPLAY  . . . . . . . . . . . .  	N PROC	00E7	M24CLK	Length = 0011
+D_TAG0 . . . . . . . . . . . . .  	L NEAR	00E7	M24CLK
+D_TAG1 . . . . . . . . . . . . .  	L NEAR	00F7	M24CLK
+
+EXIT . . . . . . . . . . . . . .  	L NEAR	006F	M24CLK
+
+H_ATTRIB . . . . . . . . . . . .  	L WORD 	0004	M24CLK
+H_INTRPT . . . . . . . . . . . .  	L WORD 	0008	M24CLK
+H_NAME . . . . . . . . . . . . .  	L BYTE 	000A	M24CLK
+H_STRATGY  . . . . . . . . . . .  	L WORD 	0006	M24CLK
+
+INIT . . . . . . . . . . . . . .  	L NEAR	00A5	M24CLK
+INPUT  . . . . . . . . . . . . .  	L NEAR	0092	M24CLK
+INTERRUPT  . . . . . . . . . . .  	F PROC	0043	M24CLK	Length = 00A4
+
+MSG0 . . . . . . . . . . . . . .  	L BYTE 	0169	M24CLK
+
+OUTPUT . . . . . . . . . . . . .  	L NEAR	007F	M24CLK
+
+REQST_PTR  . . . . . . . . . . .  	L WORD 	0012	M24CLK
+
+STRATEGY . . . . . . . . . . . .  	F PROC	0038	M24CLK	Length = 000B
+
+VECTOR . . . . . . . . . . . . .  	L WORD 	0016	M24CLK
+
+
+    358 Source  Lines
+    358 Total   Lines
+     50 Symbols
+
+  48508 Bytes symbol space free
+
+      0 Warning Errors
+      0 Severe  Errors
